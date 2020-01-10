@@ -1,0 +1,114 @@
+From 0a7c084603663a1e63b01bd677429a20bc7d4c62 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Mon, 1 Jul 2013 15:57:44 +0200
+Subject: [RHEL7 libiscsi PATCH 09/18] scsi-lowlevel: do not use unsafe pointer casts
+
+Casting unsigned char * pointers to uint32_t * may cause wrong
+results if the pointers are not correctly aligned.  Instead,
+build up the big-endian values from each byte with multiple
+dereferences of the original pointer.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from upstream commit 0a7c084603663a1e63b01bd677429a20bc7d4c62)
+---
+ lib/scsi-lowlevel.c | 36 +++++++++++++++++++++---------------
+ 1 file changed, 21 insertions(+), 15 deletions(-)
+
+diff --git a/lib/scsi-lowlevel.c b/lib/scsi-lowlevel.c
+index ad94eef..37f41d5 100644
+--- a/lib/scsi-lowlevel.c
++++ b/lib/scsi-lowlevel.c
+@@ -212,10 +212,10 @@ scsi_get_uint64(const unsigned char *c)
+ {
+ 	uint64_t val;
+ 
+-	val = ntohl(*(uint32_t *)c);
++	val = scsi_get_uint32(c);
+ 	val <<= 32;
+ 	c += 4;
+-	val |= ntohl(*(uint32_t *)c);
++	val |= scsi_get_uint32(c);
+ 
+ 	return val;
+ }
+@@ -223,13 +223,21 @@ scsi_get_uint64(const unsigned char *c)
+ inline uint32_t
+ scsi_get_uint32(const unsigned char *c)
+ {
+-	return ntohl(*(uint32_t *)c);
++	uint32_t val;
++	val = c[0];
++	val = (val << 8) | c[1];
++	val = (val << 8) | c[2];
++	val = (val << 8) | c[3];
++	return val;
+ }
+ 
+ inline uint16_t
+ scsi_get_uint16(const unsigned char *c)
+ {
+-	return ntohs(*(uint16_t *)c);
++	uint16_t val;
++	val = c[0];
++	val = (val << 8) | c[1];
++	return val;
+ }
+ 
+ static inline uint64_t
+@@ -237,14 +245,8 @@ task_get_uint64(struct scsi_task *task, int offset)
+ {
+ 	if (offset <= task->datain.size - 8) {
+ 		const unsigned char *c = &task->datain.data[offset];
+-		uint64_t val;
+ 
+-		val = ntohl(*(uint32_t *)c);
+-		val <<= 32;
+-		c += 4;
+-		val |= ntohl(*(uint32_t *)c);
+-
+-		return val;
++		return scsi_get_uint64(c);
+ 	} else {
+ 		return 0;
+ 	}
+@@ -256,7 +258,7 @@ task_get_uint32(struct scsi_task *task, int offset)
+ 	if (offset <= task->datain.size - 4) {
+ 		const unsigned char *c = &task->datain.data[offset];
+ 
+-		return ntohl(*(uint32_t *)c);
++		return scsi_get_uint32(c);
+ 	} else {
+ 		return 0;
+ 	}
+@@ -268,7 +270,7 @@ task_get_uint16(struct scsi_task *task, int offset)
+ 	if (offset <= task->datain.size - 2) {
+ 		const unsigned char *c = &task->datain.data[offset];
+ 
+-		return ntohs(*(uint16_t *)c);
++		return scsi_get_uint16(c);
+ 	} else {
+ 		return 0;
+ 	}
+@@ -300,13 +302,17 @@ scsi_set_uint64(unsigned char *c, uint64_t v)
+ inline void
+ scsi_set_uint32(unsigned char *c, uint32_t val)
+ {
+-	*(uint32_t *)c = htonl(val);
++	c[0] = val >> 24;
++	c[1] = val >> 16;
++	c[2] = val >> 8;
++	c[3] = val;
+ }
+ 
+ inline void
+ scsi_set_uint16(unsigned char *c, uint16_t val)
+ {
+-	*(uint16_t *)c = htons(val);
++	c[0] = val >> 8;
++	c[1] = val;
+ }
+ 
+ /*
+-- 
+1.8.1.4
+

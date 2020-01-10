@@ -1,0 +1,79 @@
+do not test arrays against NULL
+
+Message-id: <1383729402-27559-9-git-send-email-pbonzini@redhat.com>
+Patchwork-id: 55503
+O-Subject: [PATCH 08/11] do not test arrays against NULL
+Bugzilla: 1026820
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Orit Wasserman <owasserm@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit fce94c81a3191a2ba884dcc7a5822b5776004b4f)
+---
+ lib/login.c                | 4 ++--
+ src/iscsi-inq.c            | 2 +-
+ src/iscsi-ls.c             | 2 +-
+ src/iscsi-readcapacity16.c | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)
+diff --git a/lib/login.c b/lib/login.c
+index 7a6b092..22a7408 100644
+--- a/lib/login.c
++++ b/lib/login.c
+@@ -802,7 +802,7 @@ iscsi_login_async(struct iscsi_context *iscsi, iscsi_command_cb cb,
+ 	}
+ 
+ 	/* optional alias */
+-	if (iscsi->alias) {
++	if (iscsi->alias[0]) {
+ 		if (iscsi_login_add_alias(iscsi, pdu) != 0) {
+ 			iscsi_free_pdu(iscsi, pdu);
+ 			return -1;
+@@ -1097,7 +1097,7 @@ iscsi_process_login_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 		size -= len + 1;
+ 	}
+ 
+-	if (status == SCSI_STATUS_REDIRECT && iscsi->target_address) {
++	if (status == SCSI_STATUS_REDIRECT && iscsi->target_address[0]) {
+ 		ISCSI_LOG(iscsi, 2, "target requests redirect to %s",iscsi->target_address);
+ 		pdu->callback(iscsi, SCSI_STATUS_REDIRECT, NULL,
+ 				  pdu->private_data);
+diff --git a/src/iscsi-inq.c b/src/iscsi-inq.c
+index d694dad..a12b044 100644
+--- a/src/iscsi-inq.c
++++ b/src/iscsi-inq.c
+@@ -294,7 +294,7 @@ int main(int argc, const char *argv[])
+ 	iscsi_set_session_type(iscsi, ISCSI_SESSION_NORMAL);
+ 	iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
+ 
+-	if (iscsi_url->user != NULL) {
++	if (iscsi_url->user[0]) {
+ 		if (iscsi_set_initiator_username_pwd(iscsi, iscsi_url->user, iscsi_url->passwd) != 0) {
+ 			fprintf(stderr, "Failed to set initiator username and password\n");
+ 			exit(10);
+diff --git a/src/iscsi-ls.c b/src/iscsi-ls.c
+index 3ffc9bc..10b0e8d 100644
+--- a/src/iscsi-ls.c
++++ b/src/iscsi-ls.c
+@@ -390,7 +390,7 @@ int main(int argc, const char *argv[])
+ 
+ 	iscsi_set_session_type(iscsi, ISCSI_SESSION_DISCOVERY);
+ 
+-	if (iscsi_url->user != NULL) {
++	if (iscsi_url->user[0]) {
+ 		state.username = iscsi_url->user;
+ 		state.password = iscsi_url->passwd;
+ 		if (iscsi_set_initiator_username_pwd(iscsi, iscsi_url->user, iscsi_url->passwd) != 0) {
+diff --git a/src/iscsi-readcapacity16.c b/src/iscsi-readcapacity16.c
+index d286d70..79966ca 100644
+--- a/src/iscsi-readcapacity16.c
++++ b/src/iscsi-readcapacity16.c
+@@ -137,7 +137,7 @@ int main(int argc, const char *argv[])
+ 	iscsi_set_session_type(iscsi, ISCSI_SESSION_NORMAL);
+ 	iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
+ 
+-	if (iscsi_url->user != NULL) {
++	if (iscsi_url->user[0]) {
+ 		if (iscsi_set_initiator_username_pwd(iscsi, iscsi_url->user, iscsi_url->passwd) != 0) {
+ 			fprintf(stderr, "Failed to set initiator username and password\n");
+ 			exit(10);

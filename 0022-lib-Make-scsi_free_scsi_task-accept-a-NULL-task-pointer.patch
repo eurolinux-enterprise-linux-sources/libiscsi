@@ -1,0 +1,35 @@
+lib: Make scsi_free_scsi_task() accept a NULL task pointer
+
+Message-id: <1383729402-27559-4-git-send-email-pbonzini@redhat.com>
+Patchwork-id: 55498
+O-Subject: [PATCH 03/11] lib: Make scsi_free_scsi_task() accept a NULL task pointer
+Bugzilla: 1026820
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Orit Wasserman <owasserm@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+From: Bart Van Assche <bvanassche@acm.org>
+
+Several cleanup paths can be simplified if it is allowed to pass a
+NULL pointer to scsi_free_scsi_task(). Hence modify this function
+such that it returns immediately if passed a NULL task pointer.
+
+Signed-off-by: Bart Van Assche <bvanassche@acm.org>
+(cherry picked from commit afa076b5377cff7e1b4096965849e7939c399af1)
+---
+ lib/scsi-lowlevel.c | 3 +++
+ 1 file changed, 3 insertions(+)
+diff --git a/lib/scsi-lowlevel.c b/lib/scsi-lowlevel.c
+index ce9f904..0f97a79 100644
+--- a/lib/scsi-lowlevel.c
++++ b/lib/scsi-lowlevel.c
+@@ -50,6 +50,9 @@ scsi_free_scsi_task(struct scsi_task *task)
+ {
+ 	struct scsi_allocated_memory *mem;
+ 
++	if (!task)
++		return;
++
+ 	while ((mem = task->mem)) {
+ 		   SLIST_REMOVE(&task->mem, mem);
+ 		   free(mem);

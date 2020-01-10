@@ -1,0 +1,145 @@
+rework login and discovery code to avoid strlen beyond end of data
+
+Message-id: <1383729402-27559-11-git-send-email-pbonzini@redhat.com>
+Patchwork-id: 55505
+O-Subject: [PATCH 10/11] rework login and discovery code to avoid strlen beyond end of data
+Bugzilla: 1026820
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Orit Wasserman <owasserm@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+Checking for the presence of the NUL character should be done
+without accessing beyond the PDU datain.  Use memchr instead
+of strlen, and compute the length only if a NUL character is
+actually there.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit bfde49756524bd3748234dc6dfa8015e37176e9b)
+
+Conflicts:
+	lib/login.c
+---
+ lib/discovery.c | 31 ++++++++++++++++++++-----------
+ lib/login.c     | 32 +++++++++++++++++++++-----------
+ 2 files changed, 41 insertions(+), 22 deletions(-)
+diff --git a/lib/discovery.c b/lib/discovery.c
+index 1ddf8ef..7396e71 100644
+--- a/lib/discovery.c
++++ b/lib/discovery.c
+@@ -112,25 +112,34 @@ iscsi_process_text_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 			      pdu->private_data);
+ 		return -1;
+ 	}
++	if (size == 0) {
++		iscsi_set_error(iscsi, "size == 0 when parsing "
++				"discovery data");
++		pdu->callback(iscsi, SCSI_STATUS_ERROR, NULL,
++			      pdu->private_data);
++		return -1;
++	}
+ 
+-	while (size > 0) {
++	do {
++		unsigned char *end;
+ 		int len;
+ 
+-		len = strlen((char *)ptr);
+-
+-		if (len == 0) {
+-			break;
+-		}
+-
+-		if (len > size) {
+-			iscsi_set_error(iscsi, "len > size when parsing "
+-					"discovery data %d>%d", len, size);
++		end = memchr(ptr, 0, size);
++		if (end == NULL) {
++			iscsi_set_error(iscsi, "NUL not found after offset %td "
++					"when parsing discovery data",
++					ptr - in->data);
+ 			pdu->callback(iscsi, SCSI_STATUS_ERROR, NULL,
+ 				      pdu->private_data);
+ 			iscsi_free_discovery_addresses(iscsi, targets);
+ 			return -1;
+ 		}
+ 
++		len = end - ptr;
++		if (len == 0) {
++			break;
++		}
++
+ 		/* parse the strings */
+ 		if (!strncmp((char *)ptr, "TargetName=", 11)) {
+ 			struct iscsi_discovery_address *target;
+@@ -181,7 +190,7 @@ iscsi_process_text_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 
+ 		ptr  += len + 1;
+ 		size -= len + 1;
+-	}
++	} while (size > 0);
+ 
+ 	pdu->callback(iscsi, SCSI_STATUS_GOOD, targets, pdu->private_data);
+ 	iscsi_free_discovery_addresses(iscsi, targets);
+diff --git a/lib/login.c b/lib/login.c
+index 22a7408..8b696b0 100644
+--- a/lib/login.c
++++ b/lib/login.c
+@@ -1000,29 +1000,39 @@ iscsi_process_login_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 		iscsi->maxcmdsn = maxcmdsn;
+ 	}
+ 	
++	if (size == 0) {
++	       iscsi_set_error(iscsi, "size == 0 when parsing "
++			       "login data");
++	       pdu->callback(iscsi, SCSI_STATUS_ERROR, NULL,
++			     pdu->private_data);
++	       return -1;
++	}
++
+ 	/* XXX here we should parse the data returned in case the target
+ 	 * renegotiated some some parameters.
+ 	 *  we should also do proper handshaking if the target is not yet
+ 	 * prepared to transition to the next stage
+ 	 */
+ 
+-	while (size > 0) {
++	do {
++		char *end;
+ 		int len;
+ 
+-		len = strlen(ptr);
+-
+-		if (len == 0) {
+-			break;
+-		}
+-
+-		if (len > size) {
+-			iscsi_set_error(iscsi, "len > size when parsing "
+-					"login data %d>%d", len, size);
++		end = memchr(ptr, 0, size);
++		if (end == NULL) {
++			iscsi_set_error(iscsi, "NUL not found after offset %td "
++					"when parsing login data",
++					(unsigned char *)ptr - in->data);
+ 			pdu->callback(iscsi, SCSI_STATUS_ERROR, NULL,
+ 				      pdu->private_data);
+ 			return -1;
+ 		}
+ 
++		len = end - ptr;
++		if (len == 0) {
++			break;
++		}
++
+ 		/* parse the strings */
+ 		if (!strncmp(ptr, "TargetAddress=", 14)) {
+ 			strncpy(iscsi->target_address,ptr+14,MAX_STRING_SIZE);
+@@ -1095,7 +1105,7 @@ iscsi_process_login_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 
+ 		ptr  += len + 1;
+ 		size -= len + 1;
+-	}
++	} while (size > 0);
+ 
+ 	if (status == SCSI_STATUS_REDIRECT && iscsi->target_address[0]) {
+ 		ISCSI_LOG(iscsi, 2, "target requests redirect to %s",iscsi->target_address);

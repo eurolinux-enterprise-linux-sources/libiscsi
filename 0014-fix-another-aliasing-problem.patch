@@ -1,0 +1,30 @@
+From dfb8fb325b5a3b28c08e3699575441d437ec1863 Mon Sep 17 00:00:00 2001
+Author: Paolo Bonzini <pbonzini@redhat.com>
+Date:   Fri Aug 2 14:07:42 2013 +0200
+Subject: [RHEL7 libiscsi PATCH 14/18] fix another aliasing problem
+
+scsi_set_uint64 should just use scsi_set_uint32, similar to
+what scsi_get_uint64 does.  This avoids problems on architectures
+where "uint32_t" requires more alignment than "char", e.g. ARM.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from upstream commit 31a3aeb0e0167401a7c10f4cba95a72697f907c0)
+
+diff --git a/lib/scsi-lowlevel.c b/lib/scsi-lowlevel.c
+index 0989f0f..1bb03af 100644
+--- a/lib/scsi-lowlevel.c
++++ b/lib/scsi-lowlevel.c
+@@ -300,11 +300,11 @@ scsi_set_uint64(unsigned char *c, uint64_t v)
+ 	uint32_t val;
+ 
+ 	val = (v >> 32) & 0xffffffff;
+-	*(uint32_t *)c = htonl(val);
++	scsi_set_uint32(c, val);
+ 
+ 	c += 4;
+ 	val = v & 0xffffffff;
+-	*(uint32_t *)c = htonl(val);
++	scsi_set_uint32(c, val);
+ }
+ 
+ inline void

@@ -1,0 +1,38 @@
+Dont reference *pdu after it has been freed
+
+Message-id: <1383729402-27559-3-git-send-email-pbonzini@redhat.com>
+Patchwork-id: 55497
+O-Subject: [PATCH 02/11] Dont reference *pdu after it has been freed
+Bugzilla: 1026820
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Orit Wasserman <owasserm@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+From: Ronnie Sahlberg <ronniesahlberg@gmail.com>
+
+(cherry picked from commit 804c5b02112d84c79460e7b2a01fe42f0ca5e687)
+---
+ lib/iscsi-command.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+diff --git a/lib/iscsi-command.c b/lib/iscsi-command.c
+index e52612d..95127a5 100644
+--- a/lib/iscsi-command.c
++++ b/lib/iscsi-command.c
+@@ -1636,7 +1636,7 @@ iscsi_scsi_cancel_all_tasks(struct iscsi_context *iscsi)
+ {
+ 	struct iscsi_pdu *pdu;
+ 
+-	for (pdu = iscsi->waitpdu; pdu; pdu = pdu->next) {
++	while ((pdu = iscsi->waitpdu)) {
+ 		SLIST_REMOVE(&iscsi->waitpdu, pdu);
+ 		if ( !(pdu->flags & ISCSI_PDU_NO_CALLBACK)) {
+ 			pdu->callback(iscsi, SCSI_STATUS_CANCELLED, NULL,
+@@ -1644,7 +1644,7 @@ iscsi_scsi_cancel_all_tasks(struct iscsi_context *iscsi)
+ 		}
+ 		iscsi_free_pdu(iscsi, pdu);
+ 	}
+-	for (pdu = iscsi->outqueue; pdu; pdu = pdu->next) {
++	while ((pdu = iscsi->outqueue)) {
+ 		SLIST_REMOVE(&iscsi->outqueue, pdu);
+ 		if ( !(pdu->flags & ISCSI_PDU_NO_CALLBACK)) {
+ 			pdu->callback(iscsi, SCSI_STATUS_CANCELLED, NULL,

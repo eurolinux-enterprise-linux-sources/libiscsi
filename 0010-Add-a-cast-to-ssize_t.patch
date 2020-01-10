@@ -1,0 +1,27 @@
+From b555bbebdd1c92b025a44955a988cc2eed646c2b Mon Sep 17 00:00:00 2001
+From: Ronnie Sahlberg <ronniesahlberg@gmail.com>
+Date: Sat, 29 Jun 2013 11:12:41 -0700
+Subject: [RHEL7 libiscsi PATCH 10/18] Add a cast to ssize_t
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from upstream commit b555bbebdd1c92b025a44955a988cc2eed646c2b)
+---
+ lib/socket.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/socket.c b/lib/socket.c
+index a855f92..6fc3b41 100644
+--- a/lib/socket.c
++++ b/lib/socket.c
+@@ -517,7 +517,7 @@ iscsi_read_from_socket(struct iscsi_context *iscsi)
+ 	}
+ 
+ 	data_size = iscsi_get_pdu_data_size(&in->hdr[0]);
+-	if (data_size < 0 || data_size > iscsi->initiator_max_recv_data_segment_length) {
++	if (data_size < 0 || data_size > (ssize_t)iscsi->initiator_max_recv_data_segment_length) {
+ 		iscsi_set_error(iscsi, "Invalid data size received from target (%d)", (int)data_size);
+ 		return -1;
+ 	}
+-- 
+1.8.1.4
+

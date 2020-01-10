@@ -1,0 +1,36 @@
+From 327b51ed5b2bdf0a4fc0b50a9cdd8c1f4993e49a Mon Sep 17 00:00:00 2001
+From: Peter Lieven <pl@kamp.de>
+Date: Mon, 11 Mar 2013 08:44:11 +0100
+Subject: [RHEL7 libiscsi PATCH 01/18] do not reconnect if reconnect is already defered
+
+If the amount of reconnects is limited with iscsi_set_reconnect_max_retries()
+it might happen that iscsi_reconnect is called while there is already a deferred
+reconnect.
+
+Signed-off-by: Peter Lieven <pl@kamp.de>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from upstream commit 327b51ed5b2bdf0a4fc0b50a9cdd8c1f4993e49a)
+---
+ lib/connect.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/lib/connect.c b/lib/connect.c
+index 86a60f8..d3fa9d1 100644
+--- a/lib/connect.c
++++ b/lib/connect.c
+@@ -219,6 +219,12 @@ int iscsi_reconnect(struct iscsi_context *old_iscsi)
+ {
+ 	struct iscsi_context *iscsi = old_iscsi;
+ 
++	/* if there is already a deferred reconnect do not try again */
++	if (iscsi->reconnect_deferred) {
++		ISCSI_LOG(iscsi, 2, "reconnect initiated, but reconnect is already deferred");
++		return -1;
++	}
++
+ 	ISCSI_LOG(iscsi, 2, "reconnect initiated");
+ 
+ 	/* This is mainly for tests, where we do not want to automatically
+-- 
+1.8.1.4
+

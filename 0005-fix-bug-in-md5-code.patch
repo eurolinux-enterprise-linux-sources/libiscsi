@@ -1,0 +1,27 @@
+From cc742279d0c83523f03a93882fce6bc820851750 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Fri, 3 May 2013 12:43:50 +0200
+Subject: [RHEL7 libiscsi PATCH 05/18] fix bug in md5 code
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from upstream commit cc742279d0c83523f03a93882fce6bc820851750)
+---
+ lib/md5.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/md5.c b/lib/md5.c
+index daab76c..893956d 100644
+--- a/lib/md5.c
++++ b/lib/md5.c
+@@ -134,7 +134,7 @@ MD5Final(md5byte digest[16], struct MD5Context *ctx)
+ 
+ 	byteSwap(ctx->buf, 4);
+ 	memcpy(digest, ctx->buf, 16);
+-	memset(ctx, 0, sizeof(ctx));	/* In case it's sensitive */
++	memset(ctx, 0, sizeof(*ctx));	/* In case it's sensitive */
+ }
+ 
+ #ifndef ASM_MD5
+-- 
+1.8.1.4
+

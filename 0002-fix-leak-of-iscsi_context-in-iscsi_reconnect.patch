@@ -1,0 +1,31 @@
+From 5a94d5d73a18369e6f7b7c54674dc20b9c7d0a8e Mon Sep 17 00:00:00 2001
+From: Peter Lieven <pl@kamp.de>
+Date: Mon, 11 Mar 2013 08:51:18 +0100
+Subject: [RHEL7 libiscsi PATCH 02/18] fix leak of iscsi_context in iscsi_reconnect
+
+in case the maximum number of reconnects is limited with
+iscsi_set_reconnect_max_retries() the an iscsi_context
+is leaked if the limit is exhausted.
+
+Signed-off-by: Peter Lieven <pl@kamp.de>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from upstream commit 5a94d5d73a18369e6f7b7c54674dc20b9c7d0a8e)
+---
+ lib/connect.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/lib/connect.c b/lib/connect.c
+index d3fa9d1..7429496 100644
+--- a/lib/connect.c
++++ b/lib/connect.c
+@@ -277,6 +277,7 @@ try_again:
+ 	if (iscsi_full_connect_sync(iscsi, iscsi->portal, iscsi->lun) != 0) {
+ 		if (iscsi->reconnect_max_retries != -1 && retry >= iscsi->reconnect_max_retries) {
+ 			iscsi_defer_reconnect(old_iscsi);
++			iscsi_destroy_context(iscsi);
+ 			return -1;
+ 		}
+ 		int backoff=retry;
+-- 
+1.8.1.4
+

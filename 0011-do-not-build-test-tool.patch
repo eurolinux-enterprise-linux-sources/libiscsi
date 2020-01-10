@@ -1,0 +1,26 @@
+From b036ca4d5b414f269a0c00da2624129858e5bf3e Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Fri, 30 Aug 2013 15:55:13 +0200
+Subject: [RHEL7 libiscsi PATCH 11/18] do not build test tool
+
+The test tool is not needed in RHEL.  Do not build it nor
+install it.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+
+diff --git a/Makefile.am b/Makefile.am
+index 114dd09..d5acf30 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -59,7 +59,7 @@ bin_iscsi_dd_SOURCES = examples/iscsi-dd.c
+ 
+ # libiscsi test tool
+ 
+-noinst_PROGRAMS += bin/iscsi-test
++EXTRA_PROGRAMS += bin/iscsi-test
+ dist_noinst_HEADERS += test-tool/iscsi-support.h \
+ 		       test-tool/iscsi-test.h \
+ 		       test-tool/iscsi-test-cu.h
+-- 
+1.8.3.1
+

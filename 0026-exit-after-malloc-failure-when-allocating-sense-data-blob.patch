@@ -1,0 +1,27 @@
+exit after malloc failure when allocating sense data blob
+
+Message-id: <1383729402-27559-8-git-send-email-pbonzini@redhat.com>
+Patchwork-id: 55502
+O-Subject: [PATCH 07/11] exit after malloc failure when allocating sense data blob
+Bugzilla: 1026820
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Orit Wasserman <owasserm@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit dbaa0b4ea6a4ca11d279a4264457ccb1ad4f67ad)
+---
+ lib/iscsi-command.c | 1 +
+ 1 file changed, 1 insertion(+)
+diff --git a/lib/iscsi-command.c b/lib/iscsi-command.c
+index 95127a5..1191cd6 100644
+--- a/lib/iscsi-command.c
++++ b/lib/iscsi-command.c
+@@ -365,6 +365,7 @@ iscsi_process_scsi_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 		if (task->datain.data == NULL) {
+ 			iscsi_set_error(iscsi, "failed to allocate blob for "
+ 					"sense data");
++			break;
+ 		}
+ 		memcpy(task->datain.data, in->data, task->datain.size);
+ 

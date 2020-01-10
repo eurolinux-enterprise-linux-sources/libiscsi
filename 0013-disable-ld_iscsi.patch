@@ -1,0 +1,23 @@
+From dfb8fb325b5a3b28c08e3699575441d437ec1863 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Sat, 29 Jun 2013 11:12:41 -0700
+Subject: [RHEL7 libiscsi PATCH 13/18] disable ld_iscsi.so
+
+This is a LD_PRELOAD trick that we don't want to support, disable it.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(not upstream)
+---
+diff --git a/Makefile.am b/Makefile.am
+index 50dfe11..1a76d12 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -320,7 +320,7 @@ bin/ld_iscsi.o: src/bin_ld_iscsi-ld_iscsi.o lib/libiscsi_convenience.la
+ 	$(LIBTOOL) --mode=link $(CC) -o $@ $^
+ 
+ # 3) Manually create the .so file.
+-bin_SCRIPTS = bin/ld_iscsi.so
++#bin_SCRIPTS = bin/ld_iscsi.so
+ bin/ld_iscsi.so: bin/ld_iscsi.o
+ 	$(CC) -shared -o bin/ld_iscsi.so bin/ld_iscsi.o -ldl
+ endif

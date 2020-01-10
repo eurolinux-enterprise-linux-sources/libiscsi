@@ -1,0 +1,91 @@
+From 6cb88eb0ce8faa4b417c3abd1a9b09d4f707037c Mon Sep 17 00:00:00 2001
+From: Ronnie Sahlberg <ronniesahlberg@gmail.com>
+Date: Sun, 4 Aug 2013 17:27:29 -0700
+Subject: [RHEL7 libiscsi PATCH 17/18] Cleanup: rename pdu->written -> pdu->outdata_written
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from upstream commit 6cb88eb0ce8faa4b417c3abd1a9b09d4f707037c)
+---
+ include/iscsi-private.h |  4 ++--
+ lib/connect.c           |  2 +-
+ lib/socket.c            | 16 ++++++----------
+ 3 files changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/include/iscsi-private.h b/include/iscsi-private.h
+index df20702..d386988 100644
+--- a/include/iscsi-private.h
++++ b/include/iscsi-private.h
+@@ -221,9 +221,9 @@ struct iscsi_pdu {
+ 	iscsi_command_cb callback;
+ 	void *private_data;
+ 
+-	int written;
+-
+ 	struct iscsi_data outdata; /* Header for PDU to send */
++	size_t outdata_written;	   /* How much of the header we have written */
++
+ 	uint32_t out_offset;       /* Offset into data-out iovector */
+ 	uint32_t out_len;          /* Amount of data to sent starting at out_offset */
+ 	uint32_t out_written;      /* Number of bytes written to socket */
+diff --git a/lib/connect.c b/lib/connect.c
+index 7790253..732e0cf 100644
+--- a/lib/connect.c
++++ b/lib/connect.c
+@@ -343,7 +343,7 @@ try_again:
+ 		iscsi_pdu_set_expstatsn(pdu, iscsi->statsn);
+ 		iscsi->statsn++;
+ 
+-		pdu->written = 0;
++		pdu->outdata_written = 0;
+ 		pdu->out_written = 0;
+ 		iscsi_add_to_outqueue(iscsi, pdu);
+ 	}
+diff --git a/lib/socket.c b/lib/socket.c
+index 375cfd2..f94bb1c 100644
+--- a/lib/socket.c
++++ b/lib/socket.c
+@@ -596,8 +596,6 @@ iscsi_write_to_socket(struct iscsi_context *iscsi)
+ 	}
+ 
+ 	while (iscsi->outqueue != NULL || iscsi->outqueue_current != NULL) {
+-		ssize_t total;
+-
+ 		if (iscsi->outqueue_current == NULL) {
+ 			if (iscsi_serial32_compare(iscsi->outqueue->cmdsn, iscsi->maxcmdsn) > 0) {
+ 				/* stop sending. maxcmdsn is reached */
+@@ -616,15 +614,13 @@ iscsi_write_to_socket(struct iscsi_context *iscsi)
+ 		}
+ 
+ 		pdu = iscsi->outqueue_current;
+-
+-		total = pdu->outdata.size;
+-		total = (total + 3) & 0xfffffffc;
++		pdu->outdata.size = (pdu->outdata.size + 3) & 0xfffffffc;
+ 
+ 		/* Write header and any immediate data */
+-		if (pdu->written < total) {
++		if (pdu->outdata_written < pdu->outdata.size) {
+ 			count = send(iscsi->fd,
+-				     pdu->outdata.data + pdu->written,
+-				     total - pdu->written,
++				     pdu->outdata.data + pdu->outdata_written,
++				     pdu->outdata.size - pdu->outdata_written,
+ 				     0);
+ 			if (count == -1) {
+ 				if (errno == EAGAIN || errno == EWOULDBLOCK) {
+@@ -634,10 +630,10 @@ iscsi_write_to_socket(struct iscsi_context *iscsi)
+ 						"socket :%d", errno);
+ 				return -1;
+ 			}
+-			pdu->written += count;
++			pdu->outdata_written += count;
+ 		}
+ 		/* if we havent written the full header yet. */
+-		if (pdu->written != total) {
++		if (pdu->outdata_written != pdu->outdata.size) {
+ 			return 0;
+ 		}
+ 
+-- 
+1.8.3.1
+

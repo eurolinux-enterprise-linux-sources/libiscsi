@@ -1,0 +1,40 @@
+handle bad iscsi->fd in iscsi_service
+
+Message-id: <1383729402-27559-10-git-send-email-pbonzini@redhat.com>
+Patchwork-id: 55504
+O-Subject: [PATCH 09/11] handle bad iscsi->fd in iscsi_service
+Bugzilla: 1026820
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Orit Wasserman <owasserm@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+Just do nothing if the file descriptor is invalid.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit bb0e59055aeb69b0b035e2c2f848d8e82c96eade)
+---
+ lib/socket.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+diff --git a/lib/socket.c b/lib/socket.c
+index 8f7ebb2..78dfbfe 100644
+--- a/lib/socket.c
++++ b/lib/socket.c
+@@ -691,6 +691,9 @@ iscsi_service_reconnect_if_loggedin(struct iscsi_context *iscsi)
+ int
+ iscsi_service(struct iscsi_context *iscsi, int revents)
+ {
++	if (iscsi->fd < 0)
++		return 0;
++
+ 	if (revents & POLLERR) {
+ 		int err = 0;
+ 		socklen_t err_size = sizeof(err);
+@@ -725,7 +728,7 @@ iscsi_service(struct iscsi_context *iscsi, int revents)
+ 		return iscsi_service_reconnect_if_loggedin(iscsi);
+ 	}
+ 
+-	if (iscsi->is_connected == 0 && iscsi->fd != -1 && revents&POLLOUT) {
++	if (iscsi->is_connected == 0 && revents&POLLOUT) {
+ 		int err = 0;
+ 		socklen_t err_size = sizeof(err);
+ 		if (getsockopt(iscsi->fd, SOL_SOCKET, SO_ERROR,

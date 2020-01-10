@@ -1,0 +1,235 @@
+From e061cba1b91650ab08ae8fa50e8cadb13ac3d97d Mon Sep 17 00:00:00 2001
+From: Ronnie Sahlberg <ronniesahlberg@gmail.com>
+Date: Sun, 16 Jun 2013 11:35:14 -0700
+Subject: [RHEL7 libiscsi PATCH 07/18] URL encoded Targetnames
+
+Assume target names are URL encoded with '%' as the special character.
+
+Any sequence of '%' followed by two bytes in the target name will be replaced
+with the byte that the second two bytes represent in hexadecimal.
+
+Example
+iqn.ronnie.test%3A1234
+will be translated to iqn.ronnie.test:1234
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from upstream commit e061cba1b91650ab08ae8fa50e8cadb13ac3d97d)
+
+[The right thing to do here is probably to not use this simple-minded code
+ and use QEMU's URI parser.  I need to find a testcase, then I will create
+ a bug. - Paolo]
+---
+ include/iscsi.h |  12 ++++--
+ lib/init.c      | 114 +++++++++++++++++++++++++++++++++++++++-----------------
+ lib/login.c     |   1 +
+ 3 files changed, 88 insertions(+), 39 deletions(-)
+
+diff --git a/include/iscsi.h b/include/iscsi.h
+index f14d404..a4ed932 100644
+--- a/include/iscsi.h
++++ b/include/iscsi.h
+@@ -125,6 +125,10 @@ iscsi_set_initial_r2t(struct iscsi_context *iscsi, enum iscsi_initial_r2t initia
+  * iSCSI URL format :
+  * iscsi://[<username>[%<password>]@]<host>[:<port>]/<target-iqn>/<lun>
+  *
++ * Target names are url encoded with '%' as a special character.
++ * Example:
++ * "iqn.ronnie.test%3A1234" will be translated to "iqn.ronnie.test:1234"
++ *
+  * Function will return a pointer to an iscsi url structure if successful,
+  * or it will return NULL and set iscsi_get_error() accrodingly if there was a problem
+  * with the URL.
+diff --git a/lib/init.c b/lib/init.c
+index 18f3fb2..60a1b6d 100644
+--- a/lib/init.c
++++ b/lib/init.c
+@@ -358,6 +358,45 @@ iscsi_is_logged_in(struct iscsi_context *iscsi)
+ 	return iscsi->is_loggedin;
+ }
+ 
++static int
++h2i(int h)
++{
++	if (h >= 'a' && h <= 'f') {
++		return h - 'a' + 10;
++	}
++	if (h >= 'A' && h <= 'F') {
++		return h - 'A' + 10;
++	}
++	return h - '0';
++}
++
++static void
++iscsi_decode_url_string(char *str)
++{
++	while (*str) {
++		char *tmp = str;
++		char c;
++
++		if (*str++ != '%') {
++			continue;
++		}
++
++		if (*str == 0) {
++			return;
++		}
++		c = h2i(*str++) << 4;
++
++		if (*str == 0) {
++			return;
++		}
++		c |= h2i(*str++);
++
++		*tmp++ = c;
++		memmove(tmp, str, strlen(str));
++		tmp[strlen(str)] = 0;
++	}
++}
++
+ struct iscsi_url *
+ iscsi_parse_url(struct iscsi_context *iscsi, const char *url, int full)
+ {
+@@ -373,15 +412,18 @@ iscsi_parse_url(struct iscsi_context *iscsi, const char *url, int full)
+ 
+ 	if (strncmp(url, "iscsi://", 8)) {
+ 		if (full) {
+-		iscsi_set_error(iscsi, "Invalid URL %s\niSCSI URL must be of "
+-				"the form: %s",url,ISCSI_URL_SYNTAX); }
+-		else {
+-		iscsi_set_error(iscsi, "Invalid URL %s\niSCSI Portal URL must be of "
+-				"the form: %s",url,ISCSI_PORTAL_URL_SYNTAX); }
++			iscsi_set_error(iscsi, "Invalid URL %s\niSCSI URL must "
++				"be of the form: %s",
++				url, ISCSI_URL_SYNTAX);
++		} else {
++			iscsi_set_error(iscsi, "Invalid URL %s\niSCSI Portal "
++				"URL must be of the form: %s",
++				url, ISCSI_PORTAL_URL_SYNTAX);
++		}
+ 		return NULL;
+ 	}
+ 
+-	strncpy(str,url + 8,MAX_STRING_SIZE);
++	strncpy(str,url + 8, MAX_STRING_SIZE);
+ 	portal = str;
+ 
+ 	user   = getenv("LIBISCSI_CHAP_USERNAME");
+@@ -406,56 +448,56 @@ iscsi_parse_url(struct iscsi_context *iscsi, const char *url, int full)
+ 	if (full) {
+ 		target = strchr(portal, '/');
+ 		if (target == NULL) {
+-			iscsi_set_error(iscsi, "Invalid URL %s\nCould not parse "
+-				"'<target-iqn>'\niSCSI URL must be of the "
+-				"form: %s",
+-				url,
+-				ISCSI_URL_SYNTAX);
++			iscsi_set_error(iscsi, "Invalid URL %s\nCould not "
++				"parse '<target-iqn>'\niSCSI URL must be of "
++				"the form: %s",
++				url, ISCSI_URL_SYNTAX);
+ 			return NULL;
+ 		}
+ 		*target++ = 0;
+ 
+ 		if (*target == 0) {
+-			iscsi_set_error(iscsi, "Invalid URL %s\nCould not parse "
+-				"<target-iqn>\n"
+-				"iSCSI URL must be of the form: %s",
+-				url,
+-				ISCSI_URL_SYNTAX);
++			iscsi_set_error(iscsi, "Invalid URL %s\nCould not "
++				"parse <target-iqn>\niSCSI URL must be of the "
++				"form: %s",
++				url, ISCSI_URL_SYNTAX);
+ 			return NULL;
+ 		}
+ 
+ 		lun = strchr(target, '/');
+ 		if (lun == NULL) {
+-			iscsi_set_error(iscsi, "Invalid URL %s\nCould not parse <lun>\n"
+-				"iSCSI URL must be of the form: %s",
+-				url,
+-				ISCSI_URL_SYNTAX);
++			iscsi_set_error(iscsi, "Invalid URL %s\nCould not "
++				"parse <lun>\niSCSI URL must be of the form: "
++				"%s",
++				url, ISCSI_URL_SYNTAX);
+ 			return NULL;
+ 		}
+ 		*lun++ = 0;
+ 
+ 		l = strtol(lun, &tmp, 10);
+ 		if (*lun == 0 || *tmp != 0) {
+-			iscsi_set_error(iscsi, "Invalid URL %s\nCould not parse <lun>\n"
+-				"iSCSI URL must be of the form: %s",
+-				url,
+-				ISCSI_URL_SYNTAX);
++			iscsi_set_error(iscsi, "Invalid URL %s\nCould not "
++				"parse <lun>\niSCSI URL must be of the form: "
++				"%s",
++				url, ISCSI_URL_SYNTAX);
+ 			return NULL;
+ 		}
+-	}
+-	else
+-	{
++	} else {
+ 		tmp=strchr(portal,'/');
+-		if (tmp) *tmp=0;
++		if (tmp) {
++			*tmp=0;
++		}
+ 	}
+ 	
+-	if (iscsi != NULL)
++	if (iscsi != NULL) {
+ 		iscsi_url = iscsi_malloc(iscsi, sizeof(struct iscsi_url));
+-	else
++	} else {
+ 		iscsi_url = malloc(sizeof(struct iscsi_url));
+-	
++	}
++
+ 	if (iscsi_url == NULL) {
+-		iscsi_set_error(iscsi, "Out-of-memory: Failed to allocate iscsi_url structure");
++		iscsi_set_error(iscsi, "Out-of-memory: Failed to allocate "
++			"iscsi_url structure");
+ 		return NULL;
+ 	}
+ 	memset(iscsi_url, 0, sizeof(struct iscsi_url));
+@@ -464,15 +506,17 @@ iscsi_parse_url(struct iscsi_context *iscsi, const char *url, int full)
+ 	strncpy(iscsi_url->portal,portal,MAX_STRING_SIZE);
+ 
+ 	if (user != NULL && passwd != NULL) {
+-		strncpy(iscsi_url->user,user,MAX_STRING_SIZE);
+-		strncpy(iscsi_url->passwd,passwd,MAX_STRING_SIZE);
++		strncpy(iscsi_url->user, user, MAX_STRING_SIZE);
++		strncpy(iscsi_url->passwd, passwd, MAX_STRING_SIZE);
+ 	}
+ 
+ 	if (full) {
+-		strncpy(iscsi_url->target,target,MAX_STRING_SIZE);
++		strncpy(iscsi_url->target, target, MAX_STRING_SIZE);
+ 		iscsi_url->lun = l;
+ 	}
+ 
++	iscsi_decode_url_string(&iscsi_url->target[0]);
++
+ 	return iscsi_url;
+ }
+ 
+diff --git a/lib/login.c b/lib/login.c
+index 29fe4b3..0448ce2 100644
+--- a/lib/login.c
++++ b/lib/login.c
+@@ -622,6 +622,7 @@ h2i(int h)
+ 	}
+ 	return h - '0';
+ }
++
+ static int
+ i2h(int i)
+ {
+-- 
+1.8.1.4
+

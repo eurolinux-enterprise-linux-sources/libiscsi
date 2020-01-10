@@ -1,0 +1,63 @@
+iscsi_reconnect: Fix a use-after-free
+
+Message-id: <1383729402-27559-2-git-send-email-pbonzini@redhat.com>
+Patchwork-id: 55496
+O-Subject: [PATCH 01/11] iscsi_reconnect: Fix a use-after-free
+Bugzilla: 1026820
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Orit Wasserman <owasserm@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+
+From: Bart Van Assche <bvanassche@acm.org>
+
+This patch fixes the following Valgrind complaint:
+
+Invalid read of size 4
+   at 0x524A858: iscsi_reconnect (connect.c:378)
+   by 0x5258794: iscsi_service (socket.c:707)
+   by 0x52599C4: event_loop (sync.c:67)
+   by 0x525AFD7: iscsi_reserve6_sync (sync.c:1096)
+   by 0x40A40A: reserve6 (iscsi-support.c:3291)
+   by 0x422C95: test_reserve6_target_warm_reset (test_reserve6_target_warm_reset.c:39)
+   by 0x503B05F: ??? (in /usr/lib/libcunit.so.1.0.1)
+   by 0x503B375: ??? (in /usr/lib/libcunit.so.1.0.1)
+   by 0x503B69F: CU_run_all_tests (in /usr/lib/libcunit.so.1.0.1)
+   by 0x403171: main (iscsi-test-cu.c:1258)
+ Address 0x6443958 is 3,032 bytes inside a block of size 4,120 free'd
+   at 0x4C2B83A: free (vg_replace_malloc.c:468)
+   by 0x524A846: iscsi_reconnect (connect.c:374)
+   by 0x5258794: iscsi_service (socket.c:707)
+   by 0x52599C4: event_loop (sync.c:67)
+   by 0x525AFD7: iscsi_reserve6_sync (sync.c:1096)
+   by 0x40A40A: reserve6 (iscsi-support.c:3291)
+   by 0x422C95: test_reserve6_target_warm_reset (test_reserve6_target_warm_reset.c:39)
+   by 0x503B05F: ??? (in /usr/lib/libcunit.so.1.0.1)
+   by 0x503B375: ??? (in /usr/lib/libcunit.so.1.0.1)
+   by 0x503B69F: CU_run_all_tests (in /usr/lib/libcunit.so.1.0.1)
+   by 0x403171: main (iscsi-test-cu.c:1258)
+
+Signed-off-by: Bart Van Assche <bvanassche@acm.org>
+(cherry picked from commit 4653cd8df4c14f4eea37b6ce66277330774dd3d5)
+---
+ lib/connect.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+diff --git a/lib/connect.c b/lib/connect.c
+index bcb9d3b..0d4c957 100644
+--- a/lib/connect.c
++++ b/lib/connect.c
+@@ -356,13 +356,13 @@ try_again:
+ 	iscsi->mallocs+=old_iscsi->mallocs;
+ 	iscsi->frees+=old_iscsi->frees;
+ 
++	ISCSI_LOG(iscsi, 2, "reconnect was successful");
++
+ 	memcpy(old_iscsi, iscsi, sizeof(struct iscsi_context));
+-	memset(iscsi, 0, sizeof(struct iscsi_context));
+ 	free(iscsi);
+ 
+ 	old_iscsi->is_reconnecting = 0;
+ 	old_iscsi->last_reconnect = time(NULL);
+-	ISCSI_LOG(iscsi, 2, "reconnect was successful");
+ 
+ 	return 0;
+ }

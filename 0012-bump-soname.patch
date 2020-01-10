@@ -1,0 +1,25 @@
+From d4a6e4b3e3c6becf507158b8ae7cea70521753e9 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Sat, 29 Jun 2013 11:12:41 -0700
+Subject: [RHEL7 libiscsi PATCH 12/18] bump ABI version
+
+ABI was not preserved between 1.7.0 and 1.9.0.  It was also bumped
+further after 1.9.0, so I made the upstream patch go to 3 and
+reserved 2 for Fedora/RHEL.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(see upstream commit d4a6e4b3e3c6becf507158b8ae7cea70521753e9)
+---
+diff --git a/Makefile.am b/Makefile.am
+index 50dfe11..4ccb52c 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -37,7 +37,7 @@ if !HAVE_LIBGCRYPT
+ lib_libiscsi_la_SOURCES += lib/md5.c
+ endif
+ 
+-SONAME=$(firstword $(subst ., ,$(VERSION)))
++SONAME=2
+ SOREL=$(shell printf "%d%02d%02d" $(subst ., ,$(VERSION)))
+ lib_libiscsi_la_LDFLAGS = \
+ 	-version-info $(SONAME):$(SOREL):0 -bindir $(bindir) -no-undefined \
