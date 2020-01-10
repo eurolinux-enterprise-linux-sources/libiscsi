@@ -1,0 +1,89 @@
+fix CHAP authentication
+
+Message-id: <1386865659-20686-1-git-send-email-pbonzini@redhat.com>
+Patchwork-id: 56264
+O-Subject: [RHEL7.0 libiscsi PATCH] fix CHAP authentication
+Bugzilla: 1032358
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Bandan Das <bsd@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+
+Empty discovery and login packets are legal, and have the same behavior
+as packets with a single NUL in them.  Introduced by commit 94d73fc
+(Merge pull request #83 from bonzini/coverity, 2013-11-05).
+
+Reported-by: John Ferlan <jferlan@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+---
+        See the rhvirt-patches message with ID
+        <1383729402-27559-11-git-send-email-pbonzini@redhat.com>
+
+ lib/discovery.c | 11 ++---------
+ lib/login.c     | 12 ++----------
+ 2 files changed, 4 insertions(+), 19 deletions(-)
+diff --git a/lib/discovery.c b/lib/discovery.c
+index 8301bea..2870bd6 100644
+--- a/lib/discovery.c
++++ b/lib/discovery.c
+@@ -118,15 +118,8 @@ iscsi_process_text_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 			      pdu->private_data);
+ 		return -1;
+ 	}
+-	if (size == 0) {
+-		iscsi_set_error(iscsi, "size == 0 when parsing "
+-				"discovery data");
+-		pdu->callback(iscsi, SCSI_STATUS_ERROR, NULL,
+-			      pdu->private_data);
+-		return -1;
+-	}
+ 
+-	do {
++	while (size > 0) {
+ 		unsigned char *end;
+ 		int len;
+ 
+@@ -204,7 +197,7 @@ iscsi_process_text_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 
+ 		ptr  += len + 1;
+ 		size -= len + 1;
+-	} while (size > 0);
++	}
+ 
+ 	pdu->callback(iscsi, SCSI_STATUS_GOOD, targets, pdu->private_data);
+ 	iscsi_free_discovery_addresses(iscsi, targets);
+diff --git a/lib/login.c b/lib/login.c
+index 9a7347f..c524108 100644
+--- a/lib/login.c
++++ b/lib/login.c
+@@ -982,21 +982,13 @@ iscsi_process_login_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 		iscsi->maxcmdsn = maxcmdsn;
+ 	}
+ 	
+-	if (size == 0) {
+-	       iscsi_set_error(iscsi, "size == 0 when parsing "
+-			       "login data");
+-	       pdu->callback(iscsi, SCSI_STATUS_ERROR, NULL,
+-			     pdu->private_data);
+-	       return -1;
+-	}
+-
+ 	/* XXX here we should parse the data returned in case the target
+ 	 * renegotiated some some parameters.
+ 	 *  we should also do proper handshaking if the target is not yet
+ 	 * prepared to transition to the next stage
+ 	 */
+ 
+-	do {
++	while (size > 0) {
+ 		char *end;
+ 		int len;
+ 
+@@ -1087,7 +1079,7 @@ iscsi_process_login_reply(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
+ 
+ 		ptr  += len + 1;
+ 		size -= len + 1;
+-	} while (size > 0);
++	}
+ 
+ 	if (status == SCSI_STATUS_REDIRECT && iscsi->target_address[0]) {
+ 		ISCSI_LOG(iscsi, 2, "target requests redirect to %s",iscsi->target_address);

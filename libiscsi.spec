@@ -1,7 +1,7 @@
 Name: libiscsi
 Summary: iSCSI client library
 Version: 1.9.0
-Release: 3%{?dist}
+Release: 6%{?dist}
 License: LGPLv2+
 Group: System Environment/Libraries
 URL: https://github.com/sahlberg/%{name}
@@ -36,6 +36,7 @@ Patch27: 0027-do-not-test-arrays-against-NULL.patch
 Patch28: 0028-handle-bad-iscsi--fd-in-iscsi_service.patch
 Patch29: 0029-rework-login-and-discovery-code-to-avoid-strlen-beyond-end-of-data.patch
 Patch30: 0030-check-for-a-target-being-there-before-processing-TargetAddress.patch
+Patch31: 0031-fix-CHAP-authentication.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -86,6 +87,7 @@ a network.
 %patch28 -p1
 %patch29 -p1
 %patch30 -p1
+%patch31 -p1
 
 %build
 sh autogen.sh
@@ -145,6 +147,16 @@ The libiscsi-devel package includes the header files for libiscsi.
 %{_libdir}/pkgconfig/libiscsi.pc
 
 %changelog
+* Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 1.9.0-6
+- Mass rebuild 2014-01-24
+
+* Thu Jan 16 2014 Miroslav Rezanina <mrezanin@redhat.com> - 1.9.0-5
+- fix CHAP authentication (bz #1032358)
+- Resolves: #1032358
+
+* Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 1.9.0-4
+- Mass rebuild 2013-12-27
+
 * Thu Nov 07 2013 Miroslav Rezanina <mrezanin@redhat.com> - 1.9.0-3
 - Fixed issues reported by coverity (bz #1026820)
 - Do not mark /etc/ld.so.conf.d/ as config (bz #1011126)
