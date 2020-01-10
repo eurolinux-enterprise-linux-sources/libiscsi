@@ -1,7 +1,7 @@
 Name: libiscsi
 Summary: iSCSI client library
 Version: 1.9.0
-Release: 6%{?dist}
+Release: 7%{?dist}
 License: LGPLv2+
 Group: System Environment/Libraries
 URL: https://github.com/sahlberg/%{name}
@@ -37,6 +37,10 @@ Patch28: 0028-handle-bad-iscsi--fd-in-iscsi_service.patch
 Patch29: 0029-rework-login-and-discovery-code-to-avoid-strlen-beyond-end-of-data.patch
 Patch30: 0030-check-for-a-target-being-there-before-processing-TargetAddress.patch
 Patch31: 0031-fix-CHAP-authentication.patch
+# For bz#1266523 - iscsi-ls doesn't work if target has more than one portal
+Patch32: libiscsi-Discovery-return-multiple-portals-for-the-same-disco.patch
+# For bz#1266523 - iscsi-ls doesn't work if target has more than one portal
+Patch33: libiscsi-iscsi-ls-skip-link-local-IPv6-addresses.patch
 
 BuildRequires: autoconf
 BuildRequires: automake
@@ -88,6 +92,8 @@ a network.
 %patch29 -p1
 %patch30 -p1
 %patch31 -p1
+%patch32 -p1
+%patch33 -p1
 
 %build
 sh autogen.sh
@@ -147,6 +153,12 @@ The libiscsi-devel package includes the header files for libiscsi.
 %{_libdir}/pkgconfig/libiscsi.pc
 
 %changelog
+* Thu May 26 2016 Miroslav Rezanina <mrezanin@redhat.com> - 1.9.0-7.el7
+- libiscsi-Discovery-return-multiple-portals-for-the-same-disco.patch [bz#1266523]
+- libiscsi-iscsi-ls-skip-link-local-IPv6-addresses.patch [bz#1266523]
+- Resolves: bz#1266523
+  (iscsi-ls doesn't work if target has more than one portal)
+
 * Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 1.9.0-6
 - Mass rebuild 2014-01-24
 

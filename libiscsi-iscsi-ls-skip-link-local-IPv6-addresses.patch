@@ -1,0 +1,45 @@
+From ef6a90973cae8b047bdcbc3fcf14206efc98955a Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Thu, 7 Apr 2016 13:33:15 +0200
+Subject: [PATCH 2/2] iscsi-ls: skip link-local IPv6 addresses
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <1460035995-9887-3-git-send-email-pbonzini@redhat.com>
+Patchwork-id: 69978
+O-Subject: [RHEL7.3 libiscsi PATCH 2/2] iscsi-ls: skip link-local IPv6 addresses
+Bugzilla: 1266523
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+
+Some iSCSI targets provide a link-local IPv6 address as a portal, but that
+is unusable without knowing the interface (aka scope-id) to use for the
+connection.  This causes iscsi-ls to report an EINVAL and exit.  Just
+skip the error.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit d84ee65eaad902bb41fa6bae1f8127e03cb63506)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ src/iscsi-ls.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/iscsi-ls.c b/src/iscsi-ls.c
+index 10b0e8d..d11806c 100644
+--- a/src/iscsi-ls.c
++++ b/src/iscsi-ls.c
+@@ -156,6 +156,11 @@ void list_luns(struct client_state *clnt, const char *target, const char *portal
+ 	int full_report_size;
+ 	int i;
+ 
++	if (strncasecmp(portal, "[fe80:", 6) == 0) {
++		fprintf(stderr, "skipping link-local address\n");
++		return;
++	}
++
+ 	iscsi = iscsi_create_context(initiator);
+ 	if (iscsi == NULL) {
+ 		printf("Failed to create context\n");
+-- 
+1.8.3.1
+
